@@ -1,0 +1,67 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  CANCELED
+  REFUNDED
+}
+
+enum PaymentPlatform {
+  WECHAT
+  ALIPAY
+}
+
+model Payment {
+  id                String          @id @default(uuid())
+  merchantOrderId   String          @unique
+  platform          PaymentPlatform
+  amountCents       Int
+  currency          String          @default("CNY")
+  status            PaymentStatus   @default(PENDING)
+  platformTradeNo   String?
+  description       String?
+  notifyUrl         String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  version           Int             @default(1)
+}
+
+model OutboxEvent {
+  id          String   @id @default(uuid())
+  aggregateId String
+  aggregate   String
+  type        String
+  payload     Json
+  status      String   @default("PENDING")
+  createdAt   DateTime @default(now())
+  availableAt DateTime @default(now())
+  publishedAt DateTime?
+}
+
+model ReconciliationRun {
+  id          String   @id @default(uuid())
+  cycleDate   DateTime
+  platform    PaymentPlatform
+  status      String   @default("PENDING")
+  summary     Json?
+  createdAt   DateTime @default(now())
+  diffs       ReconciliationDiff[]
+}
+
+model ReconciliationDiff {
+  id            String   @id @default(uuid())
+  runId         String
+  run           ReconciliationRun @relation(fields: [runId], references: [id])
+  kind          String
+  merchantOrderId String?
+  platformTradeNo String?
+  details       Json
+}
